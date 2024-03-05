@@ -7,8 +7,18 @@
 #include <godot_cpp/templates/hash_map.hpp>
 
 #include <cassert>
+#include <type_traits>
+#include <iterator>
+#include <algorithm>
+#include <span>
 
-typedef uint64_t identifier_t;
+typedef int32_t identifier_t;
+
+const identifier_t NIL_ID = -1;
+
+constexpr bool is_valid_identifier(identifier_t i) {
+	return i >= 0;
+}
 
 /// @brief Position in 3D space
 struct VertexData {
@@ -17,7 +27,11 @@ struct VertexData {
 
 /// @brief Connection between two vertices
 struct EdgeData {
-	identifier_t vertices[2];
+	std::array<identifier_t, 2> vertices;
+
+	inline bool has_vertex(identifier_t v) const {
+		return vertices[0] == v || vertices[1] == v;
+	}
 };
 
 /// @brief Connection of a vertex to an edge within the context of a face
@@ -29,24 +43,30 @@ struct LoopData {
 /// @brief Connection of multiple loops into a single face
 struct FaceData {
 	std::vector<identifier_t> loops;
+	uint32_t surface;
 };
 
-class BrushMesh : public godot::Mesh {
-	GDCLASS(BrushMesh, godot::Mesh);
+/// @brief Collection of faces under one material
+struct SurfaceData {
+	godot::Ref<godot::Material> material;
+};
 
-	inline void assert_vertex_id(identifier_t i) {
+class BrushData : public godot::Resource {
+	GDCLASS(BrushData, godot::Resource);
+
+	inline void assert_vertex_id(identifier_t i) const {
 		assert(m_vertices.has(i));
 	}
 
-	inline void assert_edge_id(identifier_t i) {
+	inline void assert_edge_id(identifier_t i) const {
 		assert(m_edges.has(i));
 	}
 
-	inline void assert_loop_id(identifier_t i) {
+	inline void assert_loop_id(identifier_t i) const {
 		assert(m_loops.has(i));
 	}
 
-	inline void assert_face_id(identifier_t i) {
+	inline void assert_face_id(identifier_t i) const {
 		assert(m_faces.has(i));
 	}
 
@@ -61,6 +81,7 @@ class BrushMesh : public godot::Mesh {
 	godot::HashMap<identifier_t, LoopData> m_loops;
 	godot::HashMap<identifier_t, EdgeData> m_edges;
 	godot::HashMap<identifier_t, FaceData> m_faces;
+	std::vector<SurfaceData> m_surfaces;
 
 	// Indices
 
@@ -71,44 +92,54 @@ class BrushMesh : public godot::Mesh {
 		std::vector<identifier_t> loops;
 	};
 	struct LoopCache {
-		identifier_t opposing_loop;
+		std::vector<identifier_t> faces;
+	};
+	struct SurfaceCache {
 		std::vector<identifier_t> faces;
 	};
 	godot::HashMap<identifier_t, VertexCache> m_vertexcache;
 	godot::HashMap<identifier_t, EdgeCache> m_edgecache;
 	godot::HashMap<identifier_t, LoopCache> m_loopcache;
-	void rebuild_complete_cache();
+	std::vector<SurfaceCache> m_surfacecache;
 
 protected:
 	static void _bind_methods();
 
 public:
-	BrushMesh();
-	~BrushMesh();
+	BrushData();
+	~BrushData();
 
 	// API
 
 	identifier_t make_vertex(const godot::Vector3 point);
 	identifier_t make_edge(identifier_t vertex1, identifier_t vertex2);
 	identifier_t make_loop(identifier_t vertex, identifier_t edge);
-	identifier_t make_face();
+	identifier_t make_face(std::vector<identifier_t>&& loops, uint32_t surface);
 
-	void get_edge_vertices(identifier_t edge);
+	identifier_t get_edge_between(identifier_t vertex1, identifier_t vertex2) const;
+	inline bool has_edge(identifier_t vertex1, identifier_t vertex2) const {
+		return is_valid_identifier(get_edge_between(vertex1, vertex2));
+	}
+	std::array<identifier_t, 2> get_edge_vertices(identifier_t edge) const;
 
-	// VIRTUAL METHOD IMPLEMENTATIONS
+	identifier_t make_face_from_vertices(std::span<const identifier_t> vertices, uint32_t surface);
+	void set_face_surface(identifier_t face, uint32_t surface);
+	uint32_t get_face_surface(identifier_t face) const;
 
-	int32_t _get_surface_count() const override;
-	int32_t _surface_get_array_len(int32_t index) const override;
-	int32_t _surface_get_array_index_len(int32_t index) const override;
-	godot::Array _surface_get_arrays(int32_t index) const override;
-	godot::TypedArray<godot::Array> _surface_get_blend_shape_arrays(int32_t index) const override;
-	godot::Dictionary _surface_get_lods(int32_t index) const override;
-	uint32_t _surface_get_format(int32_t index) const override;
-	uint32_t _surface_get_primitive_type(int32_t index) const override;
-	void _surface_set_material(int32_t index, const godot::Ref<godot::Material> &material) override;
-	godot::Ref<godot::Material> _surface_get_material(int32_t index) const override;
-	int32_t _get_blend_shape_count() const override;
-	godot::StringName _get_blend_shape_name(int32_t index) const override;
-	void _set_blend_shape_name(int32_t index, const godot::StringName &name) override;
-	godot::AABB _get_aabb() const override;
+	uint32_t add_surface(godot::Ref<godot::Material> material);
+	void set_surface_material(uint32_t i, godot::Ref<godot::Material> material);
+	godot::Ref<godot::Material> get_surface_material(uint32_t i);
+
+	// EDITOR API
+
+	godot::PackedInt32Array gd_get_vertex_ids() const;
+	int64_t gd_make_vertex(godot::Vector3 position);
+	godot::Vector3 gd_get_vertex_position(int64_t id) const;
+	void gd_set_vertex_position(int64_t id, godot::Vector3 position);
+
+	// MESH API
+
+	int32_t gd_get_surface_count() const;
+	godot::Array gd_get_array_for_surface(int32_t index) const;
+	godot::AABB gd_compute_aabb() const;
 };

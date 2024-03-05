@@ -13,7 +13,7 @@ void initialize_gelatin_module(ModuleInitializationLevel p_level) {
 		return;
 	}
 
-	ClassDB::register_class<BrushMesh>();
+	ClassDB::register_class<BrushData>();
 }
 
 void uninitialize_gelatin_module(ModuleInitializationLevel p_level) {

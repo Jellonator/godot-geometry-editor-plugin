@@ -1,8 +1,17 @@
-[gd_scene load_steps=2 format=3 uid="uid://6lvn3l1bmtyi"]
+[gd_scene load_steps=4 format=3 uid="uid://6lvn3l1bmtyi"]
 
-[sub_resource type="BrushMesh" id="BrushMesh_gja0g"]
+[ext_resource type="Script" path="res://addons/gelatin_editor/brush_mesh.gd" id="1_io5ho"]
+
+[sub_resource type="BrushData" id="BrushData_d6p8a"]
+
+[sub_resource type="Mesh" id="Mesh_j0qbw"]
+resource_local_to_scene = false
+resource_name = ""
+lightmap_size_hint = Vector2i(0, 0)
+script = ExtResource("1_io5ho")
+mesh_data = SubResource("BrushData_d6p8a")
 
 [node name="Node3D" type="Node3D"]
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-mesh = SubResource("BrushMesh_gja0g")
+mesh = SubResource("Mesh_j0qbw")
