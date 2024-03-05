@@ -62,3 +62,5 @@ func _set_handle(gizmo: EditorNode3DGizmo, id: int, secondary: bool, camera: Cam
 		_original_position = prev_pos
 	var depth := camera.global_position.distance_to(prev_pos)
 	mesh.set_vertex_position(id, camera.project_ray_normal(point) * depth + camera.project_ray_origin(point))
+	# TODO: figure out why signals aren't working :(
+	__get_brush_mesh(gizmo)._on_vertex_updated(id)

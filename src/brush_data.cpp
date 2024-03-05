@@ -45,7 +45,9 @@ void BrushData::_bind_methods()
     ClassDB::bind_method(D_METHOD("add_surface", "material"), &BrushData::add_surface );
     ClassDB::bind_method(D_METHOD("get_surface_count"), &BrushData::gd_get_surface_count );
     ClassDB::bind_method(D_METHOD("compute_array_for_surface", "surface"), &BrushData::gd_get_array_for_surface );
-    ClassDB::bind_method(D_METHOD("compute_aabb"), &BrushData::gd_compute_aabb );
+    ClassDB::bind_method(D_METHOD("compute_aabb"), &BrushData::gd_compute_aabb);
+
+    ADD_SIGNAL(MethodInfo("vertex_updated", PropertyInfo(Variant::INT, "vertex")));
 }
 
 identifier_t BrushData::make_vertex(const Vector3 point) {
@@ -165,8 +167,12 @@ godot::Vector3 BrushData::gd_get_vertex_position(int64_t id) const
 
 void BrushData::gd_set_vertex_position(int64_t id, godot::Vector3 position)
 {
+    std::cout << "UPD " << id << std::endl;
     assert_vertex_id(id);
+    std::cout << "A" << std::endl;
     m_vertices[id].position = position;
+
+    emit_signal("vertex_updated", id);
 }
 
 int32_t BrushData::gd_get_surface_count() const
