@@ -11,14 +11,14 @@ func _enter_tree():
 	button.text = "HI"
 	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, button)
 	add_node_3d_gizmo_plugin(brush_gizmo)
-	# add_custom_type("BrushMesh", "Mesh", preload("brush_mesh.gd"), preload("res://icon.svg"))
+	add_custom_type("BrushMesh", "Mesh", preload("brush_mesh.gd"), preload("res://icon.svg"))
 
 func _exit_tree():
 	if button != null:
 		remove_control_from_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, button)
 		button = null
 	remove_node_3d_gizmo_plugin(brush_gizmo)
-	# remove_custom_type("BrushMesh")
+	remove_custom_type("BrushMesh")
 
 func _handles(object: Object) -> bool:
 	print(object.get_class())

@@ -2,17 +2,17 @@
 class_name BrushMesh
 extends Mesh
 
-@export var mesh_data: BrushData = BrushData.new()
-
-var _mesh: RID:
+@export var mesh_data: BrushData = BrushData.new():
 	set(value):
-		if _mesh != null and mesh_data.vertex_updated.is_connected(self._on_vertex_updated):
+		if mesh_data != null and mesh_data.vertex_updated.is_connected(self._on_vertex_updated):
 			mesh_data.vertex_updated.disconnect(self._on_vertex_updated)
-		_mesh = value
-		if _mesh != null:
+		mesh_data = value
+		if mesh_data != null:
 			mesh_data.vertex_updated.connect(self._on_vertex_updated)
 	get:
-		return _mesh
+		return mesh_data
+
+var _mesh: RID
 var _surfaces := []
 var _need_refresh := true
 var _aabb := AABB()
@@ -22,7 +22,7 @@ func _init():
 	#mesh_data.vertex_updated.connect(self._on_vertex_updated)
 
 func _notification(what: int):
-	if what == NOTIFICATION_PREDELETE:
+	if what == NOTIFICATION_PREDELETE and _mesh.is_valid():
 		RenderingServer.free_rid(_mesh)
 
 func __check_surface_info():

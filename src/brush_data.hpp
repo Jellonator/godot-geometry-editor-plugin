@@ -130,12 +130,15 @@ public:
 	void set_surface_material(uint32_t i, godot::Ref<godot::Material> material);
 	godot::Ref<godot::Material> get_surface_material(uint32_t i);
 
+
 	// EDITOR API
 
 	godot::PackedInt32Array gd_get_vertex_ids() const;
 	int64_t gd_make_vertex(godot::Vector3 position);
 	godot::Vector3 gd_get_vertex_position(int64_t id) const;
 	void gd_set_vertex_position(int64_t id, godot::Vector3 position);
+
+	godot::PackedVector3Array gd_get_gizmo_lines() const;
 
 	// MESH API
 
