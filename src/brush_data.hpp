@@ -14,7 +14,7 @@
 
 typedef int32_t identifier_t;
 
-const identifier_t NIL_ID = -1;
+const static identifier_t NIL_ID = -1;
 
 constexpr bool is_valid_identifier(identifier_t i) {
 	return i >= 0;
@@ -54,6 +54,15 @@ struct SurfaceData {
 class BrushData : public godot::Resource {
 	GDCLASS(BrushData, godot::Resource);
 
+public:
+	enum BrushComponent {
+		BRUSH_COMPONENT_VERTEX = 0,
+		BRUSH_COMPONENT_EDGE = 1,
+		BRUSH_COMPONENT_FACE = 2,
+		BRUSH_COMPONENT_LOOP = 3
+	};
+
+private:
 	inline void assert_vertex_id(identifier_t i) const {
 		assert(m_vertices.has(i));
 	}
@@ -146,3 +155,5 @@ public:
 	godot::Array gd_get_array_for_surface(int32_t index) const;
 	godot::AABB gd_compute_aabb() const;
 };
+
+VARIANT_ENUM_CAST(BrushData::BrushComponent);

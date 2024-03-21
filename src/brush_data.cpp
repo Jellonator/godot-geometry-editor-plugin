@@ -50,6 +50,11 @@ void BrushData::_bind_methods()
     ClassDB::bind_method(D_METHOD("compute_aabb"), &BrushData::gd_compute_aabb);
 
     ADD_SIGNAL(MethodInfo("vertex_updated", PropertyInfo(Variant::INT, "vertex")));
+
+    BIND_ENUM_CONSTANT(BRUSH_COMPONENT_VERTEX);
+    BIND_ENUM_CONSTANT(BRUSH_COMPONENT_EDGE);
+    BIND_ENUM_CONSTANT(BRUSH_COMPONENT_FACE);
+    BIND_ENUM_CONSTANT(BRUSH_COMPONENT_LOOP);
 }
 
 identifier_t BrushData::make_vertex(const Vector3 point) {
@@ -231,6 +236,7 @@ godot::AABB BrushData::gd_compute_aabb() const
                 a = a.min(vert.value.position);
                 b = b.max(vert.value.position);
             }
+            first = false;
         }
     }
     return AABB(a, b-a);
