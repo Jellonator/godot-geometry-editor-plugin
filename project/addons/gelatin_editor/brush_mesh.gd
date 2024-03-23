@@ -4,11 +4,11 @@ extends Mesh
 
 @export var mesh_data: BrushData = BrushData.new():
 	set(value):
-		if mesh_data != null and mesh_data.vertex_updated.is_connected(self._on_vertex_updated):
-			mesh_data.vertex_updated.disconnect(self._on_vertex_updated)
+		if mesh_data != null and mesh_data.changed.is_connected(self._on_vertex_updated):
+			mesh_data.changed.disconnect(self._on_vertex_updated)
 		mesh_data = value
 		if mesh_data != null:
-			mesh_data.vertex_updated.connect(self._on_vertex_updated)
+			mesh_data.changed.connect(self._on_vertex_updated)
 	get:
 		return mesh_data
 
@@ -20,7 +20,11 @@ var _helper: BrushDataHelper
 
 func _init():
 	_mesh = RenderingServer.mesh_create()
-	#mesh_data.vertex_updated.connect(self._on_vertex_updated)
+	if Engine.is_editor_hint() && mesh_data != null:
+		var helper := BrushDataHelper.new(mesh_data)
+		helper.create_cube()
+		helper.commit_to_brush(mesh_data)
+	#mesh_data.changed.connect(self._on_vertex_updated)
 
 func _notification(what: int):
 	if what == NOTIFICATION_PREDELETE and _mesh.is_valid():
@@ -42,7 +46,7 @@ func __rebuild_surface():
 	_aabb = mesh_data.compute_aabb()
 	_need_refresh = false
 
-func _on_vertex_updated(vert: int):
+func _on_vertex_updated():
 	_need_refresh = true
 	emit_changed()
 

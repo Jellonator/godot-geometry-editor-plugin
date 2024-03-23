@@ -42,7 +42,7 @@ func __get_brush_data_helper(gizmo: EditorNode3DGizmo) -> BrushDataHelper:
 func __get_vertex_global_position(gizmo: EditorNode3DGizmo, id: int) -> Vector3:
 	var node: MeshInstance3D = gizmo.get_node_3d()
 	var brush := __get_brush_data_helper(gizmo)
-	return node.global_transform * brush.get_vertex_position(id)
+	return node.global_transform * brush.get_vertex(id).position
 
 func _redraw(gizmo: EditorNode3DGizmo):
 	gizmo.clear()
@@ -54,10 +54,10 @@ func _redraw(gizmo: EditorNode3DGizmo):
 	var unselected_ids := PackedInt32Array()
 	for id in handle_ids:
 		if gizmo.get_subgizmo_selection().has(id):
-			selected_positions.append(brush.get_vertex_position(id))
+			selected_positions.append(brush.get_vertex(id).position)
 		else:
 			unselected_ids.append(id)
-			unselected_positions.append(brush.get_vertex_position(id))
+			unselected_positions.append(brush.get_vertex(id).position)
 	if unselected_ids.size() > 0:
 		gizmo.add_handles(unselected_positions, get_material("handle_unselected", gizmo), unselected_ids, true, true)
 	if selected_ids.size() > 0:
@@ -96,7 +96,7 @@ func _get_subgizmo_transform(gizmo: EditorNode3DGizmo, subgizmo_id: int) -> Tran
 	if subgizmo_id < 0:
 		return gizmo.get_node_3d().global_transform
 	var brush := __get_brush_data_helper(gizmo)
-	return Transform3D(Basis(), brush.get_vertex_position(subgizmo_id))
+	return Transform3D(Basis(), brush.get_vertex(subgizmo_id).position)
 
 func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool):
 	return str(handle_id)
@@ -104,7 +104,8 @@ func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool)
 func _set_subgizmo_transform(gizmo: EditorNode3DGizmo, subgizmo_id: int, transform: Transform3D):
 	print("SET ", subgizmo_id)
 	var brush := __get_brush_data_helper(gizmo)
-	brush.set_vertex_position(subgizmo_id, transform.origin)
+	brush.get_vertex(subgizmo_id).position = transform.origin
+	brush.commit_to_brush(__get_brush_data(gizmo))
 
 func _commit_subgizmos(gizmo: EditorNode3DGizmo, ids: PackedInt32Array, restores: Array[Transform3D], cancel: bool):
 	print("COMMIT ", ids)

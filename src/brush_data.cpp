@@ -16,25 +16,6 @@ constexpr T make_packed_array(std::initializer_list<U> ls) {
 
 BrushData::BrushData()
 : Resource()
-// base data is a cube
-, m_vertex_positions(make_packed_array<PackedVector3Array,Vector3>({
-    Vector3(-0.5, -0.5, -0.5),
-    Vector3(-0.5, -0.5,  0.5),
-    Vector3(-0.5,  0.5, -0.5),
-    Vector3(-0.5,  0.5,  0.5),
-    Vector3( 0.5, -0.5, -0.5),
-    Vector3( 0.5, -0.5,  0.5),
-    Vector3( 0.5,  0.5, -0.5),
-    Vector3( 0.5,  0.5,  0.5),
-}))
-, m_edge_vertex_id1(make_packed_array<PackedInt32Array,int>({6, 4, 5, 7, 1, 0, 2, 3, 2, 7, 4, 1}))
-, m_edge_vertex_id2(make_packed_array<PackedInt32Array,int>({4, 5, 7, 6, 0, 2, 3, 1, 6, 3, 0, 5}))
-, m_loop_edge_id(make_packed_array<PackedInt32Array,int>({0, 1, 2, 3, 4, 5, 6, 7, 6, 8, 3, 9, 10, 4, 11, 1, 11, 7, 9, 2, 5, 10, 0, 8}))
-, m_loop_vertex_id(make_packed_array<PackedInt32Array,int>({6, 4, 5, 7, 1, 0, 2, 3, 3, 2, 6, 7, 4, 0, 1, 5, 5, 1, 3, 7, 2, 0, 4, 6}))
-, m_face_loop_start_id(make_packed_array<PackedInt32Array,int>({0, 4, 8, 12, 16, 20}))
-, m_face_loop_count(make_packed_array<PackedInt32Array,int>({4, 4, 4, 4, 4, 4}))
-, m_face_surface_id(make_packed_array<PackedInt32Array,int>({0, 0, 0, 0, 0, 0}))
-, m_surface_materials()
 {
     Ref<StandardMaterial3D> mat;
     mat.instantiate();
