@@ -16,6 +16,7 @@ var _mesh: RID
 var _surfaces := []
 var _need_refresh := true
 var _aabb := AABB()
+var _helper: BrushDataHelper
 
 func _init():
 	_mesh = RenderingServer.mesh_create()
@@ -31,7 +32,6 @@ func __check_surface_info():
 	__rebuild_surface()
 
 func __rebuild_surface():
-	print("REBUILD")
 	_surfaces.clear()
 	RenderingServer.mesh_clear(_mesh)
 	for i in range(mesh_data.get_surface_count()):
@@ -43,7 +43,6 @@ func __rebuild_surface():
 	_need_refresh = false
 
 func _on_vertex_updated(vert: int):
-	print("UPDATE ",vert)
 	_need_refresh = true
 	emit_changed()
 
@@ -54,18 +53,27 @@ func _get_rid():
 
 func _get_surface_count() -> int:
 	__check_surface_info()
-	return mesh_data.get_surface_count()
+	var count := mesh_data.get_surface_count()
+	if count < 1:
+		return 1
+	return count
 
 func _surface_get_array_len(index: int):
 	__check_surface_info()
+	if index <= mesh_data.get_surface_count():
+		return 0
 	return _surfaces[index][ARRAY_VERTEX].size()
 
 func _surface_get_array_index_len(index: int):
 	__check_surface_info()
+	if index <= mesh_data.get_surface_count():
+		return 0
 	return _surfaces[index][ARRAY_INDEX].size()
 
 func _surface_get_arrays(index: int):
 	__check_surface_info()
+	if index <= mesh_data.get_surface_count():
+		return []
 	return _surfaces[index]
 
 func _surface_get_format(index: int):
@@ -78,11 +86,15 @@ func _surface_get_primitive_type(index: int):
 
 func _surface_set_material(index: int, material: Material):
 	__check_surface_info()
+	if index <= mesh_data.get_surface_count():
+		return
 	mesh_data.set_surface_material(index, material)
 	RenderingServer.mesh_surface_set_material(_mesh, index, material)
 
 func _surface_get_material(index: int):
 	__check_surface_info()
+	if index <= mesh_data.get_surface_count():
+		return null
 	return mesh_data.get_surface_material(index)
 
 func _get_aabb() -> AABB:

@@ -5,49 +5,80 @@
 
 using namespace godot;
 
+template<class T, class U>
+constexpr T make_packed_array(std::initializer_list<U> ls) {
+    T out;
+    for (auto& x : ls) {
+        out.push_back(x);
+    }
+    return out;
+}
+
 BrushData::BrushData()
 : Resource()
-, m_next_free_vert_id(1)
-, m_next_free_edge_id(1)
-, m_next_free_loop_id(1)
-, m_next_free_face_id(1)
+// base data is a cube
+, m_vertex_positions(make_packed_array<PackedVector3Array,Vector3>({
+    Vector3(-0.5, -0.5, -0.5),
+    Vector3(-0.5, -0.5,  0.5),
+    Vector3(-0.5,  0.5, -0.5),
+    Vector3(-0.5,  0.5,  0.5),
+    Vector3( 0.5, -0.5, -0.5),
+    Vector3( 0.5, -0.5,  0.5),
+    Vector3( 0.5,  0.5, -0.5),
+    Vector3( 0.5,  0.5,  0.5),
+}))
+, m_edge_vertex_id1(make_packed_array<PackedInt32Array,int>({6, 4, 5, 7, 1, 0, 2, 3, 2, 7, 4, 1}))
+, m_edge_vertex_id2(make_packed_array<PackedInt32Array,int>({4, 5, 7, 6, 0, 2, 3, 1, 6, 3, 0, 5}))
+, m_loop_edge_id(make_packed_array<PackedInt32Array,int>({0, 1, 2, 3, 4, 5, 6, 7, 6, 8, 3, 9, 10, 4, 11, 1, 11, 7, 9, 2, 5, 10, 0, 8}))
+, m_loop_vertex_id(make_packed_array<PackedInt32Array,int>({6, 4, 5, 7, 1, 0, 2, 3, 3, 2, 6, 7, 4, 0, 1, 5, 5, 1, 3, 7, 2, 0, 4, 6}))
+, m_face_loop_start_id(make_packed_array<PackedInt32Array,int>({0, 4, 8, 12, 16, 20}))
+, m_face_loop_count(make_packed_array<PackedInt32Array,int>({4, 4, 4, 4, 4, 4}))
+, m_face_surface_id(make_packed_array<PackedInt32Array,int>({0, 0, 0, 0, 0, 0}))
+, m_surface_materials()
 {
-    // make a cube
-    real_t s = 0.5;
-    identifier_t verts[8];
-    verts[0] = make_vertex(Vector3(-s, -s, -s));
-    verts[1] = make_vertex(Vector3(-s, -s, +s));
-    verts[2] = make_vertex(Vector3(-s, +s, -s));
-    verts[3] = make_vertex(Vector3(-s, +s, +s));
-    verts[4] = make_vertex(Vector3(+s, -s, -s));
-    verts[5] = make_vertex(Vector3(+s, -s, +s));
-    verts[6] = make_vertex(Vector3(+s, +s, -s));
-    verts[7] = make_vertex(Vector3(+s, +s, +s));
-    uint32_t surf = add_surface({});
-    make_face_from_vertices({{verts[4], verts[5], verts[7], verts[6]}}, surf);
-    make_face_from_vertices({{verts[0], verts[2], verts[3], verts[1]}}, surf);
-    make_face_from_vertices({{verts[2], verts[6], verts[7], verts[3]}}, surf);
-    make_face_from_vertices({{verts[0], verts[1], verts[5], verts[4]}}, surf);
-    make_face_from_vertices({{verts[1], verts[3], verts[7], verts[5]}}, surf);
-    make_face_from_vertices({{verts[0], verts[4], verts[6], verts[2]}}, surf);
+    Ref<StandardMaterial3D> mat;
+    mat.instantiate();
+    add_surface(mat);
 }
 
 BrushData::~BrushData() { }
 
 void BrushData::_bind_methods()
 {
-    ClassDB::bind_method(D_METHOD("get_vertex_ids"), &BrushData::gd_get_vertex_ids);
-    ClassDB::bind_method(D_METHOD("get_vertex_position", "id"), &BrushData::gd_get_vertex_position);
-    ClassDB::bind_method(D_METHOD("set_vertex_position", "id", "position"), &BrushData::gd_set_vertex_position);
-    ClassDB::bind_method(D_METHOD("make_vertex", "position"), &BrushData::gd_make_vertex);
     ClassDB::bind_method(D_METHOD("get_surface_material", "surface"), &BrushData::get_surface_material);
     ClassDB::bind_method(D_METHOD("set_surface_material", "surface", "material"), &BrushData::set_surface_material);
     ClassDB::bind_method(D_METHOD("add_surface", "material"), &BrushData::add_surface);
-    ClassDB::bind_method(D_METHOD("get_gizmo_lines"), &BrushData::gd_get_gizmo_lines);
 
     ClassDB::bind_method(D_METHOD("get_surface_count"), &BrushData::gd_get_surface_count);
     ClassDB::bind_method(D_METHOD("compute_array_for_surface", "surface"), &BrushData::gd_get_array_for_surface);
     ClassDB::bind_method(D_METHOD("compute_aabb"), &BrushData::gd_compute_aabb);
+    ClassDB::bind_method(D_METHOD("get_vertex_positions"), &BrushData::gd_get_vertex_positions);
+    ClassDB::bind_method(D_METHOD("set_vertex_positions", "array"), &BrushData::gd_set_vertex_positions);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::PACKED_VECTOR3_ARRAY, "vertex_positions"), "set_vertex_positions", "get_vertex_positions");
+    ClassDB::bind_method(D_METHOD("get_edge_vertex_id1"), &BrushData::gd_get_edge_vertex_id1);
+    ClassDB::bind_method(D_METHOD("set_edge_vertex_id1", "array"), &BrushData::gd_set_edge_vertex_id1);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::PACKED_INT32_ARRAY, "edge_vertex_id1"), "set_edge_vertex_id1", "get_edge_vertex_id1");
+    ClassDB::bind_method(D_METHOD("get_edge_vertex_id2"), &BrushData::gd_get_edge_vertex_id2);
+    ClassDB::bind_method(D_METHOD("set_edge_vertex_id2", "array"), &BrushData::gd_set_edge_vertex_id2);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::PACKED_INT32_ARRAY, "edge_vertex_id2"), "set_edge_vertex_id2", "get_edge_vertex_id2");
+    ClassDB::bind_method(D_METHOD("get_loop_edge_id"), &BrushData::gd_get_loop_edge_id);
+    ClassDB::bind_method(D_METHOD("set_loop_edge_id", "array"), &BrushData::gd_set_loop_edge_id);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::PACKED_INT32_ARRAY, "loop_edge_id"), "set_loop_edge_id", "get_loop_edge_id");
+    ClassDB::bind_method(D_METHOD("get_loop_vertex_id"), &BrushData::gd_get_loop_vertex_id);
+    ClassDB::bind_method(D_METHOD("set_loop_vertex_id", "array"), &BrushData::gd_set_loop_vertex_id);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::PACKED_INT32_ARRAY, "loop_vertex_id"), "set_loop_vertex_id", "get_loop_vertex_id");
+    ClassDB::bind_method(D_METHOD("get_face_loop_start_id"), &BrushData::gd_get_face_loop_start_id);
+    ClassDB::bind_method(D_METHOD("set_face_loop_start_id", "array"), &BrushData::gd_set_face_loop_start_id);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::PACKED_INT32_ARRAY, "face_loop_start_id"), "set_face_loop_start_id", "get_face_loop_start_id");
+    ClassDB::bind_method(D_METHOD("get_face_loop_count"), &BrushData::gd_get_face_loop_count);
+    ClassDB::bind_method(D_METHOD("set_face_loop_count", "array"), &BrushData::gd_set_face_loop_count);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::PACKED_INT32_ARRAY, "face_loop_count"), "set_face_loop_count", "get_face_loop_count");
+    ClassDB::bind_method(D_METHOD("get_face_surface_id"), &BrushData::gd_get_face_surface_id);
+    ClassDB::bind_method(D_METHOD("set_face_surface_id", "array"), &BrushData::gd_set_face_surface_id);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::PACKED_INT32_ARRAY, "face_surface_id"), "set_face_surface_id", "get_face_surface_id");
+    ClassDB::bind_method(D_METHOD("get_surface_materials"), &BrushData::gd_get_surface_materials);
+    ClassDB::bind_method(D_METHOD("set_surface_materials", "array"), &BrushData::gd_set_surface_materials);
+    ClassDB::add_property("BrushData", PropertyInfo(Variant::ARRAY, "surface_materials", PROPERTY_HINT_ARRAY_TYPE, "Material"), "set_surface_materials", "get_surface_materials");
 
     ADD_SIGNAL(MethodInfo("vertex_updated", PropertyInfo(Variant::INT, "vertex")));
 
@@ -57,163 +88,141 @@ void BrushData::_bind_methods()
     BIND_ENUM_CONSTANT(BRUSH_COMPONENT_LOOP);
 }
 
-identifier_t BrushData::make_vertex(const Vector3 point) {
-    identifier_t i = m_next_free_vert_id;
-    ++m_next_free_vert_id;
-    m_vertices.insert(i, {.position = point});
-    m_vertexcache.insert(i, {});
-    return i;
-}
-
-identifier_t BrushData::make_edge(identifier_t vertex1, identifier_t vertex2) {
-    identifier_t i = m_next_free_edge_id;
-    ++m_next_free_edge_id;
-    m_edges.insert(i, {.vertices = {vertex1, vertex2}});
-    m_edgecache.insert(i, {});
-    m_vertexcache[vertex1].edges.push_back(i);
-    m_vertexcache[vertex2].edges.push_back(i);
-    return i;
-}
-
-identifier_t BrushData::make_loop(identifier_t vertex, identifier_t edge) {
-    identifier_t i = m_next_free_loop_id;
-    ++m_next_free_loop_id;
-    m_loops.insert(i, {.vertex = vertex, .edge = edge});
-    m_loopcache.insert(i, {});
-    m_edgecache[edge].loops.push_back(i);
-    return i;
-}
-
-identifier_t BrushData::make_face(std::vector<identifier_t>&& loops, uint32_t surface) {
-    identifier_t i = m_next_free_face_id;
-    ++m_next_free_face_id;
-    m_faces.insert(i, {.loops = loops, .surface = surface});
-    m_surfacecache[surface].faces.push_back(i);
-    for (const auto& loop : loops) {
-        m_loopcache[loop].faces.push_back(i);
-    }
-    return i;
-}
-
-identifier_t BrushData::get_edge_between(identifier_t vertex1, identifier_t vertex2) const {
-    for (identifier_t edge : m_vertexcache[vertex1].edges) {
-        if (m_edges[edge].has_vertex(vertex2)) return edge;
-    }
-    return NIL_ID;
-}
-
-identifier_t BrushData::make_face_from_vertices(std::span<const identifier_t> vertices, uint32_t surface)
+godot::PackedVector3Array BrushData::gd_get_vertex_positions()
 {
-    if (vertices.size() < 3) return NIL_ID;
-    std::vector<identifier_t> loops;
-    identifier_t prev_id = vertices.back();
-    for (int i = 0; i < vertices.size(); i++) {
-        identifier_t cur_id = vertices[i];
-        identifier_t edge = get_edge_between(prev_id, cur_id);
-        if (!is_valid_identifier(edge)) {
-            edge = make_edge(prev_id, cur_id);
-        }
-        loops.push_back(make_loop(prev_id, edge));
-        prev_id = cur_id;
-    }
-    return make_face(std::move(loops), surface);
+    return m_vertex_positions;
 }
 
-std::array<identifier_t, 2> BrushData::get_edge_vertices(identifier_t edge) const {
-    return m_edges[edge].vertices;
-}
-
-void BrushData::set_face_surface(identifier_t face, uint32_t surface)
+void BrushData::gd_set_vertex_positions(godot::PackedVector3Array v)
 {
-    m_faces[face].surface = surface;
+    m_vertex_positions = v;
 }
 
-uint32_t BrushData::get_face_surface(identifier_t face) const
+godot::PackedInt32Array BrushData::gd_get_edge_vertex_id1()
 {
-    return m_faces[face].surface;
+    return m_edge_vertex_id1;
+}
+
+void BrushData::gd_set_edge_vertex_id1(godot::PackedInt32Array v)
+{
+    m_edge_vertex_id1 = v;
+}
+
+godot::PackedInt32Array BrushData::gd_get_edge_vertex_id2()
+{
+    return m_edge_vertex_id2;
+}
+
+void BrushData::gd_set_edge_vertex_id2(godot::PackedInt32Array v)
+{
+    m_edge_vertex_id2 = v;
+}
+
+godot::PackedInt32Array BrushData::gd_get_loop_edge_id()
+{
+    return m_loop_edge_id;
+}
+
+void BrushData::gd_set_loop_edge_id(godot::PackedInt32Array v)
+{
+    m_loop_edge_id = v;
+}
+
+godot::PackedInt32Array BrushData::gd_get_loop_vertex_id()
+{
+    return m_loop_vertex_id;
+}
+
+void BrushData::gd_set_loop_vertex_id(godot::PackedInt32Array v)
+{
+    m_loop_vertex_id = v;
+}
+
+godot::PackedInt32Array BrushData::gd_get_face_loop_start_id()
+{
+    return m_face_loop_start_id;
+}
+
+void BrushData::gd_set_face_loop_start_id(godot::PackedInt32Array v)
+{
+    m_face_loop_start_id = v;
+}
+
+godot::PackedInt32Array BrushData::gd_get_face_loop_count()
+{
+    return m_face_loop_count;
+}
+
+void BrushData::gd_set_face_loop_count(godot::PackedInt32Array v)
+{
+    m_face_loop_count = v;
+}
+
+godot::PackedInt32Array BrushData::gd_get_face_surface_id()
+{
+    return m_face_surface_id;
+}
+
+void BrushData::gd_set_face_surface_id(godot::PackedInt32Array v)
+{
+    m_face_surface_id = v;
+}
+
+godot::TypedArray<godot::Material> BrushData::gd_get_surface_materials()
+{
+    return m_surface_materials;
+}
+
+void BrushData::gd_set_surface_materials(godot::TypedArray<godot::Material> v)
+{
+    m_surface_materials = v;
 }
 
 uint32_t BrushData::add_surface(godot::Ref<godot::Material> material)
 {
-    m_surfaces.push_back({.material = material});
-    m_surfacecache.push_back({});
-    return m_surfaces.size() - 1;
+    m_surface_materials.push_back(material);
+    // m_surfacecache.push_back({});
+    return m_surface_materials.size() - 1;
 }
 
 void BrushData::set_surface_material(uint32_t i, godot::Ref<godot::Material> material)
 {
-    m_surfaces[i].material = material;
+    m_surface_materials[i] = material;
 }
 
 godot::Ref<godot::Material> BrushData::get_surface_material(uint32_t i)
 {
-    return m_surfaces[i].material;
+    return m_surface_materials[i];
 }
 
 /* GDSCRIPT API */
 
-godot::PackedInt32Array BrushData::gd_get_vertex_ids() const
-{
-    godot::PackedInt32Array vec;
-    for (const auto& pair : m_vertices) {
-        vec.append(pair.key);
-    }
-    return vec;
-}
-
-int64_t BrushData::gd_make_vertex(godot::Vector3 position)
-{
-    return make_vertex(position);
-}
-
-godot::Vector3 BrushData::gd_get_vertex_position(int64_t id) const
-{
-    assert_vertex_id(id);
-    return m_vertices[id].position;
-}
-
-void BrushData::gd_set_vertex_position(int64_t id, godot::Vector3 position)
-{
-    assert_vertex_id(id);
-    m_vertices[id].position = position;
-    emit_signal("vertex_updated", id);
-}
-
-godot::PackedVector3Array BrushData::gd_get_gizmo_lines() const
-{
-    godot::PackedVector3Array v;
-    for (const auto& e : m_edges) {
-        v.push_back(m_vertices[e.value.vertices[0]].position);
-        v.push_back(m_vertices[e.value.vertices[1]].position);
-    }
-    return v;
-}
-
 int32_t BrushData::gd_get_surface_count() const
 {
-    return m_surfaces.size();
+    return m_surface_materials.size();
 }
 
 Array BrushData::gd_get_array_for_surface(int32_t index) const
 {
-    ERR_FAIL_INDEX_V(index, m_surfaces.size(), {});
+    ERR_FAIL_INDEX_V(index, m_surface_materials.size(), {});
     // TODO: only surfaces for index
     godot::Array arr;
     arr.resize(godot::Mesh::ARRAY_MAX);
     godot::HashMap<identifier_t, size_t> vertex_index_map;
     godot::PackedVector3Array arr_vertices;
     godot::PackedVector3Array arr_normals;
-    for (const auto& vert : m_loops) {
-        vertex_index_map.insert(vert.key, arr_vertices.size());
-        arr_vertices.push_back(m_vertices[vert.value.vertex].position);
+    for (int i = 0; i < m_loop_vertex_id.size(); i ++) {
+        vertex_index_map.insert(i, arr_vertices.size());
+        arr_vertices.push_back(m_vertex_positions[m_loop_vertex_id[i]]);
         arr_normals.push_back(Vector3(1, 1, 1).normalized());
     }
     godot::PackedInt32Array arr_indices;
-    for (const auto& face : m_faces) {
-        for (int i = 1; i < face.value.loops.size() - 1; i++) {
-            arr_indices.push_back(vertex_index_map[face.value.loops[0]]);
-            arr_indices.push_back(vertex_index_map[face.value.loops[i]]);
-            arr_indices.push_back(vertex_index_map[face.value.loops[i+1]]);
+    for (int i = 0; i < m_face_loop_start_id.size(); i++) {
+        int start = m_face_loop_start_id[i];
+        for (int j = 1; j < m_face_loop_count[i] - 1; j++) {
+            arr_indices.push_back(vertex_index_map[start]);
+            arr_indices.push_back(vertex_index_map[start+j]);
+            arr_indices.push_back(vertex_index_map[start+j+1]);
         }
     }
     arr[Mesh::ARRAY_VERTEX] = arr_vertices;
@@ -226,15 +235,15 @@ godot::AABB BrushData::gd_compute_aabb() const
 {
     godot::Vector3 a;
     godot::Vector3 b;
-    if (m_vertices.size() > 0) {
+    if (m_vertex_positions.size() > 0) {
         bool first = true;
-        for (const auto& vert : m_vertices) {
+        for (const auto& vert : m_vertex_positions) {
             if (first) {
-                a = vert.value.position;
-                b = vert.value.position;
+                a = vert;
+                b = vert;
             } else {
-                a = a.min(vert.value.position);
-                b = b.max(vert.value.position);
+                a = a.min(vert);
+                b = b.max(vert);
             }
             first = false;
         }

@@ -21,12 +21,9 @@ func _exit_tree():
 	remove_custom_type("BrushMesh")
 
 func _handles(object: Object) -> bool:
-	print(object.get_class())
-	print("? ", is_instance_of(object, BrushMesh))
 	return is_instance_of(object, BrushMesh)
 
 func _edit(object):
-	prints("EDIT", object)
 	if object != null:
 		button.show()
 	else:

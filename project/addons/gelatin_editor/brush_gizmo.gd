@@ -1,3 +1,4 @@
+@tool
 extends EditorNode3DGizmoPlugin
 
 func _get_gizmo_name():
@@ -25,40 +26,48 @@ func __get_brush_mesh(gizmo: EditorNode3DGizmo) -> BrushMesh:
 	return node.mesh
 
 func __get_brush_data(gizmo: EditorNode3DGizmo) -> BrushData:
-	var mesh = __get_brush_mesh(gizmo)
+	var mesh: BrushMesh = __get_brush_mesh(gizmo)
 	if mesh == null:
 		return null
 	return mesh.mesh_data
 
+func __get_brush_data_helper(gizmo: EditorNode3DGizmo) -> BrushDataHelper:
+	var mesh: BrushMesh = __get_brush_mesh(gizmo)
+	if mesh == null:
+		return null
+	if mesh._helper == null:
+		mesh._helper = BrushDataHelper.new(mesh.mesh_data)
+	return mesh._helper
+
 func __get_vertex_global_position(gizmo: EditorNode3DGizmo, id: int) -> Vector3:
 	var node: MeshInstance3D = gizmo.get_node_3d()
-	var brush := __get_brush_data(gizmo)
+	var brush := __get_brush_data_helper(gizmo)
 	return node.global_transform * brush.get_vertex_position(id)
 
 func _redraw(gizmo: EditorNode3DGizmo):
 	gizmo.clear()
-	var mesh := __get_brush_data(gizmo)
-	var handle_ids: PackedInt32Array = mesh.get_vertex_ids()
+	var brush := __get_brush_data_helper(gizmo)
+	var handle_ids: PackedInt32Array = brush.get_vertex_ids()
 	var selected_positions := PackedVector3Array()
 	var unselected_positions := PackedVector3Array()
 	var selected_ids := gizmo.get_subgizmo_selection()
 	var unselected_ids := PackedInt32Array()
 	for id in handle_ids:
 		if gizmo.get_subgizmo_selection().has(id):
-			selected_positions.append(mesh.get_vertex_position(id))
+			selected_positions.append(brush.get_vertex_position(id))
 		else:
 			unselected_ids.append(id)
-			unselected_positions.append(mesh.get_vertex_position(id))
+			unselected_positions.append(brush.get_vertex_position(id))
 	if unselected_ids.size() > 0:
 		gizmo.add_handles(unselected_positions, get_material("handle_unselected", gizmo), unselected_ids, true, true)
 	if selected_ids.size() > 0:
 		gizmo.add_handles(selected_positions, get_material("handle_selected", gizmo), selected_ids, true, false)
-	gizmo.add_lines(mesh.get_gizmo_lines(), get_material("main", gizmo))
+	gizmo.add_lines(brush.get_gizmo_lines(), get_material("main", gizmo))
 
 func _subgizmos_intersect_frustum(gizmo: EditorNode3DGizmo, camera: Camera3D, frustum_planes: Array[Plane]) -> PackedInt32Array:
 	var ret_ids := PackedInt32Array()
-	var mesh := __get_brush_data(gizmo)
-	var handle_ids: PackedInt32Array = mesh.get_vertex_ids()
+	var brush := __get_brush_data_helper(gizmo)
+	var handle_ids: PackedInt32Array = brush.get_vertex_ids()
 	for id in handle_ids:
 		var pos := __get_vertex_global_position(gizmo, id)
 		var include := true
@@ -73,8 +82,8 @@ func _subgizmos_intersect_frustum(gizmo: EditorNode3DGizmo, camera: Camera3D, fr
 func _subgizmos_intersect_ray(gizmo: EditorNode3DGizmo, camera: Camera3D, screen_pos: Vector2) -> int:
 	var ret_id := -1
 	var ret_distance: float = 1e10
-	var mesh := __get_brush_data(gizmo)
-	var handle_ids: PackedInt32Array = mesh.get_vertex_ids()
+	var brush := __get_brush_data_helper(gizmo)
+	var handle_ids: PackedInt32Array = brush.get_vertex_ids()
 	for id in handle_ids:
 		var pos := __get_vertex_global_position(gizmo, id)
 		if camera.unproject_position(pos).distance_to(screen_pos) < 10:
@@ -86,16 +95,16 @@ func _get_subgizmo_transform(gizmo: EditorNode3DGizmo, subgizmo_id: int) -> Tran
 	print("GET ", subgizmo_id)
 	if subgizmo_id < 0:
 		return gizmo.get_node_3d().global_transform
-	var mesh := __get_brush_data(gizmo)
-	return Transform3D(Basis(), mesh.get_vertex_position(subgizmo_id))
+	var brush := __get_brush_data_helper(gizmo)
+	return Transform3D(Basis(), brush.get_vertex_position(subgizmo_id))
 
 func _get_handle_name(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool):
 	return str(handle_id)
 
 func _set_subgizmo_transform(gizmo: EditorNode3DGizmo, subgizmo_id: int, transform: Transform3D):
 	print("SET ", subgizmo_id)
-	var mesh := __get_brush_data(gizmo)
-	mesh.set_vertex_position(subgizmo_id, transform.origin)
+	var brush := __get_brush_data_helper(gizmo)
+	brush.set_vertex_position(subgizmo_id, transform.origin)
 
 func _commit_subgizmos(gizmo: EditorNode3DGizmo, ids: PackedInt32Array, restores: Array[Transform3D], cancel: bool):
 	print("COMMIT ", ids)
