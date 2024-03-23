@@ -1,17 +1,24 @@
 @tool
 extends EditorPlugin
 
-const BrushGizmo := preload("res://addons/gelatin_editor/brush_gizmo.gd")
+const BrushGizmoPlugin := preload("res://addons/gelatin_editor/brush_gizmo_plugin.gd")
 
 var button: Button
-var brush_gizmo = BrushGizmo.new()
+var brush_gizmo = BrushGizmoPlugin.new()
 
 func _enter_tree():
-	button = Button.new()
-	button.text = "HI"
-	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, button)
 	add_node_3d_gizmo_plugin(brush_gizmo)
 	add_custom_type("BrushMesh", "Mesh", preload("brush_mesh.gd"), preload("res://icon.svg"))
+	# DELETE
+	button = Button.new()
+	button.text = "Delete"
+	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, button)
+	button.pressed.connect(brush_gizmo._on_delete)
+	# FILL
+	button = Button.new()
+	button.text = "Fill"
+	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, button)
+	button.pressed.connect(brush_gizmo._on_fill)
 
 func _exit_tree():
 	if button != null:

@@ -6,20 +6,20 @@ extends RefCounted
 
 class VertexData:
 	var position: Vector3 = Vector3.ZERO
-	var edge_cache: PackedInt32Array = PackedInt32Array()
+	var edge_cache := {}
 	func _init(p: Vector3):
 		position = p
 
 class EdgeData:
 	var vertex1: int = -1
 	var vertex2: int = -1
-	var loop_cache: PackedInt32Array = PackedInt32Array()
+	var loop_cache := {}
 	func _init(v1: int, v2: int):
 		vertex1 = v1
 		vertex2 = v2
 
 class LoopData:
-	var face_cache: PackedInt32Array = PackedInt32Array()
+	var face_cache := {}
 	var vertex: int = -1
 	var edge: int = -1
 	func _init(v: int, e: int):
@@ -34,7 +34,7 @@ class LoopData:
 			return edges[edge].vertex1
 
 class SurfaceData:
-	var face_cache: PackedInt32Array = PackedInt32Array()
+	var face_cache := {}
 	var material: Material
 	func _init(m: Material):
 		material = m
@@ -74,18 +74,18 @@ func init_from_brush(brush: BrushData = null):
 		vertices[i] = VertexData.new(brush.vertex_positions[i])
 	for i in range(brush.edge_vertex_id1.size()):
 		edges[i] = EdgeData.new(brush.edge_vertex_id1[i], brush.edge_vertex_id2[i])
-		vertices[brush.edge_vertex_id1[i]].edge_cache.push_back(i)
-		vertices[brush.edge_vertex_id2[i]].edge_cache.push_back(i)
+		vertices[brush.edge_vertex_id1[i]].edge_cache[i] = i
+		vertices[brush.edge_vertex_id2[i]].edge_cache[i] = i
 	for i in range(brush.loop_vertex_id.size()):
 		loops[i] = LoopData.new(brush.loop_vertex_id[i], brush.loop_edge_id[i])
-		edges[brush.loop_edge_id[i]].loop_cache.push_back(i)
+		edges[brush.loop_edge_id[i]].loop_cache[i] = i
 	for i in range(brush.surface_materials.size()):
 		surfaces[i] = SurfaceData.new(brush.surface_materials[i])
 	for i in range(brush.face_loop_start_id.size()):
 		faces[i] = FaceData.new(brush.face_loop_start_id[i], brush.face_loop_count[i], brush.face_surface_id[i])
 		for j in range(brush.face_loop_count[i]):
-			loops[brush.face_loop_start_id[i] + j].face_cache.push_back(i)
-		surfaces[brush.face_surface_id[i]].face_cache.push_back(i)
+			loops[brush.face_loop_start_id[i] + j].face_cache[i] = i
+		surfaces[brush.face_surface_id[i]].face_cache[i] = i
 	if brush == null:
 		_next_vert_id = 0
 		_next_edge_id = 0
@@ -151,6 +151,18 @@ func commit_to_brush(brush: BrushData):
 func get_vertex(v: int) -> VertexData:
 	return vertices[v]
 
+func get_edge(e: int) -> EdgeData:
+	return edges[e]
+
+func get_loop(l: int) -> LoopData:
+	return loops[l]
+
+func get_face(f: int) -> FaceData:
+	return faces[f]
+
+func get_surface(s: int) -> SurfaceData:
+	return surfaces[s]
+
 func make_vertex(point: Vector3) -> int:
 	var index := _next_vert_id
 	_next_vert_id += 1
@@ -161,8 +173,8 @@ func make_edge(v1: int, v2: int) -> int:
 	var index := _next_edge_id
 	_next_edge_id += 1
 	edges[index] = EdgeData.new(v1, v2)
-	vertices[v1].edge_cache.push_back(index)
-	vertices[v2].edge_cache.push_back(index)
+	vertices[v1].edge_cache[index] = index
+	vertices[v2].edge_cache[index] = index
 	return index
 
 func get_edge_between(v1: int, v2: int) -> int:
@@ -175,16 +187,16 @@ func __make_loop(vertex: int, edge: int) -> int:
 	var index := _next_loop_id
 	_next_loop_id += 1
 	loops[index] = LoopData.new(vertex, edge)
-	edges[edge].loop_cache.push_back(index)
+	edges[edge].loop_cache[index] = index
 	return index
 
 func __make_face(surface: int, loop_start: int, loop_count: int) -> int:
 	var index := _next_face_id
 	_next_face_id += 1
 	faces[index] = FaceData.new(loop_start, loop_count, surface)
-	surfaces[surface].face_cache.push_back(index)
+	surfaces[surface].face_cache[index] = index
 	for i in range(loop_count):
-		loops[loop_start + i].face_cache.push_back(index)
+		loops[loop_start + i].face_cache[index] = index
 	return index
 
 func make_face(surface: int, vertices: PackedInt32Array) -> int:
@@ -199,6 +211,38 @@ func make_face(surface: int, vertices: PackedInt32Array) -> int:
 		__make_loop(prev_id, edge)
 		prev_id = cur_id
 	return __make_face(surface, loop_start_id, vertices.size())
+
+func delete_face(id):
+	print("DELETE FACE ", id)
+	var face := get_face(id)
+	for i in range(face.loop_first, face.loop_first + face.loop_count):
+		print("DELETE LOOP ", i)
+		var loop := get_loop(i)
+		get_edge(loop.edge).loop_cache.erase(i)
+		loops.erase(i)
+	get_surface(face.surface).face_cache.erase(id)
+	faces.erase(id)
+
+func delete_edge(id: int):
+	var edge := get_edge(id)
+	var face_list := {}
+	for l in edge.loop_cache:
+		for f in get_loop(l).face_cache:
+			face_list[f] = f
+	prints("DELETE EDGE", id, face_list)
+	for f in face_list:
+		delete_face(f)
+	get_vertex(edge.vertex1).edge_cache.erase(id)
+	get_vertex(edge.vertex2).edge_cache.erase(id)
+	edges.erase(id)
+
+func delete_vertex(id: int):
+	# delete related edges
+	var edge_list := get_vertex(id).edge_cache.duplicate()
+	prints("DELETE VERT", id, edge_list)
+	for edge in edge_list:
+		delete_edge(edge)
+	vertices.erase(id)
 
 ## Editor functions
 

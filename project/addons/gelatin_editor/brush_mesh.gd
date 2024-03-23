@@ -24,7 +24,7 @@ func _init():
 		var helper := BrushDataHelper.new(mesh_data)
 		helper.create_cube()
 		helper.commit_to_brush(mesh_data)
-	#mesh_data.changed.connect(self._on_vertex_updated)
+	mesh_data.changed.connect(self._on_vertex_updated)
 
 func _notification(what: int):
 	if what == NOTIFICATION_PREDELETE and _mesh.is_valid():
