@@ -5,24 +5,46 @@ extends RefCounted
 ## Cache Data
 
 class VertexData:
+	var id: int = -1
 	var position: Vector3 = Vector3.ZERO
 	var edge_cache := {}
-	func _init(p: Vector3):
+	func _init(p_id: int, p: Vector3):
+		id = p_id
 		position = p
 
 class EdgeData:
+	var id: int = -1
 	var vertex1: int = -1
 	var vertex2: int = -1
 	var loop_cache := {}
-	func _init(v1: int, v2: int):
+	func _init(p_id: int, v1: int, v2: int):
+		id = p_id
 		vertex1 = v1
 		vertex2 = v2
+	func update_vertex1(data: BrushDataHelper, new_vert_id: int):
+		for loopid in loop_cache:
+			var loop := data.get_loop(loopid)
+			if loop.vertex == vertex1:
+				loop.vertex = new_vert_id
+		data.get_vertex(vertex1).edge_cache.erase(id)
+		data.get_vertex(new_vert_id).edge_cache[id] = id
+		vertex1 = new_vert_id
+	func update_vertex2(data: BrushDataHelper, new_vert_id: int):
+		for loopid in loop_cache:
+			var loop := data.get_loop(loopid)
+			if loop.vertex == vertex2:
+				loop.vertex = new_vert_id
+		data.get_vertex(vertex2).edge_cache.erase(id)
+		data.get_vertex(new_vert_id).edge_cache[id] = id
+		vertex2 = new_vert_id
 
 class LoopData:
+	var id: int = -1
 	var face_cache := {}
 	var vertex: int = -1
 	var edge: int = -1
-	func _init(v: int, e: int):
+	func _init(p_id: int, v: int, e: int):
+		id = p_id
 		vertex = v
 		edge = e
 	func get_start_vertex_id() -> int:
@@ -32,18 +54,35 @@ class LoopData:
 			return edges[edge].vertex2
 		else:
 			return edges[edge].vertex1
+	func replace(data: BrushDataHelper, new_vert: int, new_edge: int):
+		data.get_edge(edge).loop_cache.erase(id)
+		edge = new_edge
+		vertex = new_vert
+		data.get_edge(edge).loop_cache[id] = id
+	func get_matching_vertex_order(data: BrushDataHelper, vertices: PackedInt32Array) -> PackedInt32Array:
+		var i := vertices.find(vertex)
+		if i == -1:
+			return vertices
+		var next_i := (i + 1) % vertices.size();
+		if vertices[next_i] == get_end_vertex_id(data.edges):
+			vertices.reverse()
+		return vertices
 
 class SurfaceData:
+	var id: int = -1
 	var face_cache := {}
 	var material: Material
-	func _init(m: Material):
+	func _init(p_id: int, m: Material):
+		id = p_id
 		material = m
 
 class FaceData:
+	var id: int = -1
 	var surface: int = 0
 	var loop_first: int = -1
 	var loop_count: int = 0
-	func _init(first: int, count: int, surf: int = 0):
+	func _init(p_id: int, first: int, count: int, surf: int = 0):
+		id = p_id
 		surface = surf
 		loop_first = first
 		loop_count = count
@@ -71,18 +110,18 @@ func init_from_brush(brush: BrushData = null):
 	faces.clear()
 	# VERTICES
 	for i in range(brush.vertex_positions.size()):
-		vertices[i] = VertexData.new(brush.vertex_positions[i])
+		vertices[i] = VertexData.new(i, brush.vertex_positions[i])
 	for i in range(brush.edge_vertex_id1.size()):
-		edges[i] = EdgeData.new(brush.edge_vertex_id1[i], brush.edge_vertex_id2[i])
+		edges[i] = EdgeData.new(i, brush.edge_vertex_id1[i], brush.edge_vertex_id2[i])
 		vertices[brush.edge_vertex_id1[i]].edge_cache[i] = i
 		vertices[brush.edge_vertex_id2[i]].edge_cache[i] = i
 	for i in range(brush.loop_vertex_id.size()):
-		loops[i] = LoopData.new(brush.loop_vertex_id[i], brush.loop_edge_id[i])
+		loops[i] = LoopData.new(i, brush.loop_vertex_id[i], brush.loop_edge_id[i])
 		edges[brush.loop_edge_id[i]].loop_cache[i] = i
 	for i in range(brush.surface_materials.size()):
-		surfaces[i] = SurfaceData.new(brush.surface_materials[i])
+		surfaces[i] = SurfaceData.new(i, brush.surface_materials[i])
 	for i in range(brush.face_loop_start_id.size()):
-		faces[i] = FaceData.new(brush.face_loop_start_id[i], brush.face_loop_count[i], brush.face_surface_id[i])
+		faces[i] = FaceData.new(i, brush.face_loop_start_id[i], brush.face_loop_count[i], brush.face_surface_id[i])
 		for j in range(brush.face_loop_count[i]):
 			loops[brush.face_loop_start_id[i] + j].face_cache[i] = i
 		surfaces[brush.face_surface_id[i]].face_cache[i] = i
@@ -166,13 +205,13 @@ func get_surface(s: int) -> SurfaceData:
 func make_vertex(point: Vector3) -> int:
 	var index := _next_vert_id
 	_next_vert_id += 1
-	vertices[index] = VertexData.new(point)
+	vertices[index] = VertexData.new(index, point)
 	return index
 
 func make_edge(v1: int, v2: int) -> int:
 	var index := _next_edge_id
 	_next_edge_id += 1
-	edges[index] = EdgeData.new(v1, v2)
+	edges[index] = EdgeData.new(index, v1, v2)
 	vertices[v1].edge_cache[index] = index
 	vertices[v2].edge_cache[index] = index
 	return index
@@ -183,17 +222,24 @@ func get_edge_between(v1: int, v2: int) -> int:
 			return e
 	return -1
 
+func get_or_make_edge_between(v1: int, v2: int) -> int:
+	var e := get_edge_between(v1, v2)
+	if e == -1:
+		return make_edge(v1, v2)
+	else:
+		return e
+
 func __make_loop(vertex: int, edge: int) -> int:
 	var index := _next_loop_id
 	_next_loop_id += 1
-	loops[index] = LoopData.new(vertex, edge)
+	loops[index] = LoopData.new(index, vertex, edge)
 	edges[edge].loop_cache[index] = index
 	return index
 
 func __make_face(surface: int, loop_start: int, loop_count: int) -> int:
 	var index := _next_face_id
 	_next_face_id += 1
-	faces[index] = FaceData.new(loop_start, loop_count, surface)
+	faces[index] = FaceData.new(index, loop_start, loop_count, surface)
 	surfaces[surface].face_cache[index] = index
 	for i in range(loop_count):
 		loops[loop_start + i].face_cache[index] = index
@@ -243,6 +289,17 @@ func delete_vertex(id: int):
 	for edge in edge_list:
 		delete_edge(edge)
 	vertices.erase(id)
+
+func get_connected_vertices(vertex_id: int) -> Array[int]:
+	var ret: Array[int] = []
+	# NOTE: assuming only one edge can exist between two given vertices
+	for eid in get_vertex(vertex_id).edge_cache:
+		var edge := get_edge(eid)
+		if edge.vertex1 == vertex_id:
+			ret.push_back(edge.vertex2)
+		elif edge.vertex2 == vertex_id:
+			ret.push_back(edge.vertex1)
+	return ret
 
 ## Editor functions
 

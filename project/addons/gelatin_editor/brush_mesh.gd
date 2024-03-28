@@ -27,6 +27,7 @@ func _init():
 	mesh_data.changed.connect(self._on_vertex_updated)
 
 func _notification(what: int):
+	prints("MESH NOTIF", what)
 	if what == NOTIFICATION_PREDELETE and _mesh.is_valid():
 		RenderingServer.free_rid(_mesh)
 

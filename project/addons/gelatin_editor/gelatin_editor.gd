@@ -19,6 +19,11 @@ func _enter_tree():
 	button.text = "Fill"
 	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, button)
 	button.pressed.connect(brush_gizmo._on_fill)
+	# EXTRUDE
+	button = Button.new()
+	button.text = "Extrude"
+	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, button)
+	button.pressed.connect(brush_gizmo._on_extrude)
 
 func _exit_tree():
 	if button != null:

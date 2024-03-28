@@ -143,10 +143,102 @@ func _on_fill():
 	if active_gizmo == null:
 		return
 	var ids := active_gizmo.get_subgizmo_selection()
-	if ids.size() < 3:
+	if ids.size() == 2:
+		__get_brush_data_helper(active_gizmo).make_edge(ids[0], ids[1])
+		__commit_to_brush(active_gizmo)
+	elif ids.size() > 2:
+		__get_brush_data_helper(active_gizmo).make_face(0, ids)
+		__commit_to_brush(active_gizmo)
+
+func _on_extrude():
+	if active_gizmo == null:
 		return
-	__get_brush_data_helper(active_gizmo).make_face(0, ids)
+	var helper := __get_brush_data_helper(active_gizmo)
+	var selected_vert_ids := active_gizmo.get_subgizmo_selection()
+	var selected_face_ids: Array[int] = []
+	# Get selected faces (all vertices of face are selected)
+	for fid in helper.faces:
+		var face := helper.get_face(fid)
+		var c_sel := 0
+		var c_unsel := 0
+		for lid in range(face.loop_first, face.loop_first + face.loop_count):
+			var loop := helper.get_loop(lid)
+			if selected_vert_ids.has(loop.vertex):
+				c_sel += 1
+			else:
+				c_unsel += 1
+		if c_sel > 0 and c_unsel == 0:
+			selected_face_ids.push_back(fid)
+	# Duplicate shared vertices (aka, vertices which have at least one edge that isn't selected)
+	var duplicated_vert_id_map := {}
+	for vid in selected_vert_ids:
+		var connected_vertex_ids := helper.get_connected_vertices(vid)
+		if connected_vertex_ids.is_empty() or connected_vertex_ids.any(func(i: int): return not selected_vert_ids.has(i)):
+			# TODO: move to separate duplicate method
+			var newvid := helper.make_vertex(helper.get_vertex(vid).position)
+			duplicated_vert_id_map[vid] = newvid
+			
+	#
+	#for vid in duplicated_vert_id_map:
+		#var vertex := helper.get_vertex(vid)
+		#var edges := vertex.edge_cache.keys()
+		#print("    EDGES ", edges)
+		#for eid in edges:
+			#var edge := helper.get_edge(eid)
+			#if edge.vertex1 == vid:# && not selected_ids.has(edge.vertex2):
+				#prints("        REPLACE V1", edge.vertex1, duplicated_vert_id_map[vid])
+				#edge.update_vertex1(helper, duplicated_vert_id_map[vid])
+			#elif edge.vertex2 == vid:# && not selected_ids.has(edge.vertex1):
+				#prints("        REPLACE V2", edge.vertex2, duplicated_vert_id_map[vid])
+				#edge.update_vertex2(helper, duplicated_vert_id_map[vid])
+	# Create edges between original and duplicated vertices
+	for vid1 in duplicated_vert_id_map:
+		var vid2: int = duplicated_vert_id_map[vid1]
+		helper.make_edge(vid1, vid2)
+	# Duplicate edges between original and duplicated vertices
+	var duplicated_edge_id_map := {}
+	for edge_id in helper.edges.keys():
+		var edge := helper.get_edge(edge_id)
+		if duplicated_vert_id_map.has(edge.vertex1) and duplicated_vert_id_map.has(edge.vertex2):
+			duplicated_edge_id_map[edge_id] = helper.make_edge(duplicated_vert_id_map[edge.vertex1], duplicated_vert_id_map[edge.vertex2])
+	# Update selected faces to point to new vertices.
+	for fid in selected_face_ids:
+		var face := helper.get_face(fid)
+		for lid in range(face.loop_first, face.loop_first + face.loop_count):
+			var loop := helper.get_loop(lid)
+			loop.replace(helper, duplicated_vert_id_map[loop.vertex], duplicated_edge_id_map[loop.edge])
+	# Create faces (quads) between original and duplicated vertices
+	for edge_id in duplicated_edge_id_map:
+		var edge1 := helper.get_edge(edge_id)
+		var edge2 := helper.get_edge(duplicated_edge_id_map[edge_id])
+		var vx := PackedInt32Array([edge1.vertex1, edge2.vertex1, edge2.vertex2, edge1.vertex2])
+		# match existing loops, if possible
+		if edge1.loop_cache.size() == 1:
+			vx = helper.get_loop(edge1.loop_cache.keys()[0]).get_matching_vertex_order(helper, vx)
+		elif edge2.loop_cache.size() == 1:
+			vx = helper.get_loop(edge1.loop_cache.keys()[0]).get_matching_vertex_order(helper, vx)
+		helper.make_face(0, vx)
+	#for i in range(duplicated_vid_keys.size()):
+		#var vid1_1: int = duplicated_vid_keys[i]
+		#var vid1_2: int = duplicated_vert_id_map[vid1_1]
+		#for j in range(i + 1, duplicated_vid_keys.size()):
+			#var vid2_1: int = duplicated_vid_keys[j]
+			#var vid2_2: int = duplicated_vert_id_map[vid2_1]
+			## TODO: determine material
+			#helper.make_face(0, PackedInt32Array([vid1_1, vid1_2, vid2_2, vid1_2]))
+	# Select new IDs
+	# TODO: update when proper set_subgizmo_selection gets merged
+	print("DUP ", duplicated_vert_id_map)
+	print("SEL ", selected_vert_ids)
 	__commit_to_brush(active_gizmo)
+	var sel = PackedInt32Array()
+	for i in selected_vert_ids:
+		if duplicated_vert_id_map.has(i):
+			sel.push_back(duplicated_vert_id_map[i])
+		else:
+			sel.push_back(i)
+	#if sel.size() > 0:
+		#active_gizmo.get_node_3d().set_subgizmo_selection(active_gizmo, sel[0], Transform3D())
 
 #func _get_handle_value(gizmo: EditorNode3DGizmo, handle_id: int, secondary: bool):
 	#var mesh := __get_brush_data(gizmo)
