@@ -82,6 +82,13 @@ public:
 	godot::TypedArray<godot::Material> gd_get_surface_materials();
 	void gd_set_surface_materials(godot::TypedArray<godot::Material> v);
 
+	// Utility functions
+
+	godot::Vector3 calculate_normal_for_vertex(identifier_t id) const;
+	// godot::Vector3 calculate_normal_for_edge(identifier_t id) const;
+	godot::Vector3 calculate_normal_for_face(identifier_t id) const;
+	// godot::Vector3 calculate_normal_for_loop(identifier_t id) const;
+
 	// MESH API
 
 	int32_t gd_get_surface_count() const;

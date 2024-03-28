@@ -186,24 +186,25 @@ int32_t BrushData::gd_get_surface_count() const
 Array BrushData::gd_get_array_for_surface(int32_t index) const
 {
     ERR_FAIL_INDEX_V(index, m_surface_materials.size(), {});
-    // TODO: only surfaces for index
     godot::Array arr;
     arr.resize(godot::Mesh::ARRAY_MAX);
-    godot::HashMap<identifier_t, size_t> vertex_index_map;
     godot::PackedVector3Array arr_vertices;
     godot::PackedVector3Array arr_normals;
-    for (int i = 0; i < m_loop_vertex_id.size(); i ++) {
-        vertex_index_map.insert(i, arr_vertices.size());
-        arr_vertices.push_back(m_vertex_positions[m_loop_vertex_id[i]]);
-        arr_normals.push_back(Vector3(1, 1, 1).normalized());
-    }
     godot::PackedInt32Array arr_indices;
     for (int i = 0; i < m_face_loop_start_id.size(); i++) {
+        if (m_face_surface_id[i] != index) continue;
         int start = m_face_loop_start_id[i];
+        godot::Vector3 normal = calculate_normal_for_face(i);
+        int out_loop_index_start = arr_vertices.size();
+        for (int j = 0; j < m_face_loop_count[i]; j++) {
+            // godot::Vector3 normal = calculate_normal_for_vertex(m_loop_vertex_id[start+j]);
+            arr_vertices.push_back(m_vertex_positions[m_loop_vertex_id[start + j]]);
+            arr_normals.push_back(normal);
+        }
         for (int j = 1; j < m_face_loop_count[i] - 1; j++) {
-            arr_indices.push_back(vertex_index_map[start]);
-            arr_indices.push_back(vertex_index_map[start+j]);
-            arr_indices.push_back(vertex_index_map[start+j+1]);
+            arr_indices.push_back(out_loop_index_start);
+            arr_indices.push_back(out_loop_index_start + j);
+            arr_indices.push_back(out_loop_index_start + j + 1);
         }
     }
     arr[Mesh::ARRAY_VERTEX] = arr_vertices;
@@ -230,4 +231,40 @@ godot::AABB BrushData::gd_compute_aabb() const
         }
     }
     return AABB(a, b-a);
+}
+
+godot::Vector3 BrushData::calculate_normal_for_vertex(identifier_t id) const
+{
+    godot::Vector3 normal;
+    // TODO: maybe just move normal handling elsewhere...
+    for (int i = 0; i < m_edge_vertex_id1.size(); i++) {
+        if (m_edge_vertex_id1[i] == id) {
+            normal += (m_vertex_positions[id] - m_vertex_positions[m_edge_vertex_id2[i]]).normalized();
+        } else if (m_edge_vertex_id2[i] == id) {
+            normal += (m_vertex_positions[id] - m_vertex_positions[m_edge_vertex_id1[i]]).normalized();
+        }
+    }
+    return normal.normalized();
+}
+
+godot::Vector3 BrushData::calculate_normal_for_face(identifier_t id) const
+{
+    // normal = sum(f => cross(f.v1, f.v2))
+    godot::Vector3 normal;
+    int count = m_face_loop_count[id];
+    for (int i = 0; i < count; i++) {
+        int loop1 = m_face_loop_start_id[id] + i;
+        int loop2 = m_face_loop_start_id[id] + ((i + 1) % count);
+        int edge1 = m_loop_edge_id[loop1];
+        int edge2 = m_loop_edge_id[loop2];
+        int vert1_1 = m_loop_vertex_id[loop1];
+        int vert1_2 = (vert1_1 == m_edge_vertex_id1[edge1]) ? m_edge_vertex_id2[edge1] : m_edge_vertex_id1[edge1];
+        int vert2_1 = m_loop_vertex_id[loop2];
+        int vert2_2 = (vert2_1 == m_edge_vertex_id1[edge2]) ? m_edge_vertex_id2[edge2] : m_edge_vertex_id1[edge2];
+        godot::Vector3 edge1_dir = m_vertex_positions[vert1_2] - m_vertex_positions[vert1_1];
+        godot::Vector3 edge2_dir = m_vertex_positions[vert2_2] - m_vertex_positions[vert1_1];
+        if (edge1_dir == Vector3(0, 0, 0) || edge2_dir == Vector3(0, 0, 0)) continue;
+        normal += edge2_dir.normalized().cross(edge1_dir.normalized());
+    }
+    return normal.normalized();
 }
