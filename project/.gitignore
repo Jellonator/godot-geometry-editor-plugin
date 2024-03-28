@@ -1,3 +1,5 @@
 bin/
 # Godot 4+ specific ignores
 .godot/
+# Ignore scene changes
+*.tscn

@@ -24,9 +24,9 @@
      inkscape:deskcolor="#505050"
      inkscape:document-units="px"
      showgrid="true"
-     inkscape:zoom="4.71875"
-     inkscape:cx="-82.437086"
-     inkscape:cy="4.0264901"
+     inkscape:zoom="13.34664"
+     inkscape:cx="6.5934195"
+     inkscape:cy="17.682352"
      inkscape:window-width="2560"
      inkscape:window-height="1412"
      inkscape:window-x="1920"
@@ -58,28 +58,22 @@
      inkscape:groupmode="layer"
      id="layer1">
     <circle
-       style="opacity:1;fill:#9d9d9d;fill-opacity:1;stroke:none;stroke-opacity:1"
-       id="path1"
+       style="opacity:1;fill:#f4d800;fill-opacity:1;stroke-width:1.33333"
+       id="path2"
        cx="16"
        cy="16"
        r="16" />
     <circle
-       style="opacity:1;fill:#797979;fill-opacity:1"
-       id="path2"
-       cx="16"
-       cy="16"
-       r="12" />
-    <circle
-       style="opacity:1;fill:#ffa201;fill-opacity:1;stroke:none;stroke-width:1.57142;stroke-opacity:1"
+       style="opacity:1;fill:#ffac1f;fill-opacity:1;stroke:none;stroke-width:2.09523;stroke-opacity:1"
        id="path3"
        cx="16"
        cy="16"
-       r="11" />
+       r="14.666667" />
     <circle
-       style="opacity:1;fill:#ffcb4a;fill-opacity:1;stroke:none;stroke-width:1.21428;stroke-opacity:1"
+       style="opacity:1;fill:#ffe846;fill-opacity:1;stroke:none;stroke-width:1.04761;stroke-opacity:1"
        id="circle3"
-       cx="14.5"
-       cy="14.5"
-       r="8.5" />
+       cx="12.666667"
+       cy="12.666667"
+       r="7.3333335" />
   </g>
 </svg>

@@ -104,7 +104,10 @@ func _surface_get_material(index: int):
 
 func _get_aabb() -> AABB:
 	__check_surface_info()
-	return _aabb
+	var aabb := _aabb
+	if Engine.is_editor_hint():
+		aabb.grow(1.0)
+	return aabb
 
 func _get_blend_shape_count() -> int:
 	__check_surface_info()

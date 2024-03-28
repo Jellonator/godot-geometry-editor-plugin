@@ -7,7 +7,8 @@ func _get_gizmo_name():
 	return "Brush Editor"
 
 func _init():
-	create_material("main", Color(1, 0, 0))
+	create_material("edge_selected", Color(1, 0.5, 0))
+	create_material("edge_unselected", Color(0.2, 0.2, 0.2, 0.5))
 	create_handle_material("handle_selected", false, preload("res://addons/gelatin_editor/icon/handle_selected.svg"))
 	create_handle_material("handle_unselected", false, preload("res://addons/gelatin_editor/icon/handle_unselected.svg"))
 
@@ -62,7 +63,7 @@ func _redraw(gizmo: EditorNode3DGizmo):
 	var selected_ids := gizmo.get_subgizmo_selection()
 	var unselected_ids := PackedInt32Array()
 	for id in handle_ids:
-		if gizmo.get_subgizmo_selection().has(id):
+		if selected_ids.has(id):
 			selected_positions.append(brush.get_vertex(id).position)
 		else:
 			unselected_ids.append(id)
@@ -71,7 +72,23 @@ func _redraw(gizmo: EditorNode3DGizmo):
 		gizmo.add_handles(unselected_positions, get_material("handle_unselected", gizmo), unselected_ids, true, true)
 	if selected_ids.size() > 0:
 		gizmo.add_handles(selected_positions, get_material("handle_selected", gizmo), selected_ids, true, false)
-	gizmo.add_lines(brush.get_gizmo_lines(), get_material("main", gizmo))
+	var selected_edges := PackedVector3Array()
+	var unselected_edges := PackedVector3Array()
+	for e in brush.edges.values():
+		if selected_ids.has(e.vertex1) and selected_ids.has(e.vertex2):
+			selected_edges.push_back(brush.vertices[e.vertex1].position)
+			selected_edges.push_back(brush.vertices[e.vertex2].position)
+		else:
+			unselected_edges.push_back(brush.vertices[e.vertex1].position)
+			unselected_edges.push_back(brush.vertices[e.vertex2].position)
+	if selected_edges.size() > 0:
+		gizmo.add_lines(selected_edges, get_material("edge_selected", gizmo), true)
+	if unselected_edges.size() > 0:
+		gizmo.add_lines(unselected_edges, get_material("edge_unselected", gizmo), true)
+	var mat := StandardMaterial3D.new()
+	mat.render_priority = 1
+	gizmo.add_mesh(__get_brush_mesh(gizmo), mat)
+	gizmo.add_collision_triangles(__get_brush_mesh(gizmo).generate_triangle_mesh())
 
 func _subgizmos_intersect_frustum(gizmo: EditorNode3DGizmo, camera: Camera3D, frustum_planes: Array[Plane]) -> PackedInt32Array:
 	var ret_ids := PackedInt32Array()
@@ -169,44 +186,56 @@ func _on_extrude():
 				c_unsel += 1
 		if c_sel > 0 and c_unsel == 0:
 			selected_face_ids.push_back(fid)
-	# Duplicate shared vertices (aka, vertices which have at least one edge that isn't selected)
+	# Duplicate shared vertices (aka, vertices which have at least one face that isn't selected)
 	var duplicated_vert_id_map := {}
 	for vid in selected_vert_ids:
-		var connected_vertex_ids := helper.get_connected_vertices(vid)
-		if connected_vertex_ids.is_empty() or connected_vertex_ids.any(func(i: int): return not selected_vert_ids.has(i)):
+		#var connected_vertex_ids := helper.get_connected_vertices(vid)
+		var connected_face_ids := helper.get_vertex(vid).get_linked_faces(helper)
+		prints("CONN", vid, connected_face_ids, connected_face_ids.map(func(i: int): return not selected_face_ids.has(i)))
+		if connected_face_ids.is_empty() or connected_face_ids.any(func(i: int): return not selected_face_ids.has(i)):
 			# TODO: move to separate duplicate method
 			var newvid := helper.make_vertex(helper.get_vertex(vid).position)
 			duplicated_vert_id_map[vid] = newvid
-			
-	#
-	#for vid in duplicated_vert_id_map:
-		#var vertex := helper.get_vertex(vid)
-		#var edges := vertex.edge_cache.keys()
-		#print("    EDGES ", edges)
-		#for eid in edges:
-			#var edge := helper.get_edge(eid)
-			#if edge.vertex1 == vid:# && not selected_ids.has(edge.vertex2):
-				#prints("        REPLACE V1", edge.vertex1, duplicated_vert_id_map[vid])
-				#edge.update_vertex1(helper, duplicated_vert_id_map[vid])
-			#elif edge.vertex2 == vid:# && not selected_ids.has(edge.vertex1):
-				#prints("        REPLACE V2", edge.vertex2, duplicated_vert_id_map[vid])
-				#edge.update_vertex2(helper, duplicated_vert_id_map[vid])
+	# Duplicate edges between original vertices
+	# That is, we want to duplicate the 'ring' around selected faces
+	var duplicated_edge_id_map := {}
+	var edge_postprocess_list: Array[int] = []
+	for edge_id in helper.edges.keys():
+		var edge := helper.get_edge(edge_id)
+		if selected_vert_ids.has(edge.vertex1) and selected_vert_ids.has(edge.vertex2):
+			# only duplicate if edge is linked to non-selected face (or isn't linked to any faces)
+			# Otherwise, update edge
+			var has_unselected_linked_face := false
+			var has_face := false
+			for loop in edge.loop_cache:
+				for face in helper.get_loop(loop).face_cache:
+					has_face = true
+					if not selected_face_ids.has(face):
+						has_unselected_linked_face = true
+			if duplicated_vert_id_map.has(edge.vertex1) and duplicated_vert_id_map.has(edge.vertex2) and(not has_face or has_unselected_linked_face):
+				duplicated_edge_id_map[edge_id] = helper.make_edge(duplicated_vert_id_map[edge.vertex1], duplicated_vert_id_map[edge.vertex2])
+			else:
+				edge_postprocess_list.push_back(edge_id)
+	for edge_id in edge_postprocess_list:
+		var edge := helper.get_edge(edge_id)
+		if duplicated_vert_id_map.has(edge.vertex1):
+			edge.update_vertex1(helper, duplicated_vert_id_map[edge.vertex1])
+		if duplicated_vert_id_map.has(edge.vertex2):
+			edge.update_vertex2(helper, duplicated_vert_id_map[edge.vertex2])
 	# Create edges between original and duplicated vertices
 	for vid1 in duplicated_vert_id_map:
 		var vid2: int = duplicated_vert_id_map[vid1]
 		helper.make_edge(vid1, vid2)
-	# Duplicate edges between original and duplicated vertices
-	var duplicated_edge_id_map := {}
-	for edge_id in helper.edges.keys():
-		var edge := helper.get_edge(edge_id)
-		if duplicated_vert_id_map.has(edge.vertex1) and duplicated_vert_id_map.has(edge.vertex2):
-			duplicated_edge_id_map[edge_id] = helper.make_edge(duplicated_vert_id_map[edge.vertex1], duplicated_vert_id_map[edge.vertex2])
 	# Update selected faces to point to new vertices.
 	for fid in selected_face_ids:
 		var face := helper.get_face(fid)
 		for lid in range(face.loop_first, face.loop_first + face.loop_count):
 			var loop := helper.get_loop(lid)
-			loop.replace(helper, duplicated_vert_id_map[loop.vertex], duplicated_edge_id_map[loop.edge])
+			if duplicated_vert_id_map.has(loop.vertex):
+				var eid := loop.edge
+				if duplicated_edge_id_map.has(eid):
+					eid = duplicated_edge_id_map[eid]
+				loop.replace(helper, duplicated_vert_id_map[loop.vertex], eid)
 	# Create faces (quads) between original and duplicated vertices
 	for edge_id in duplicated_edge_id_map:
 		var edge1 := helper.get_edge(edge_id)
@@ -218,14 +247,6 @@ func _on_extrude():
 		elif edge2.loop_cache.size() == 1:
 			vx = helper.get_loop(edge1.loop_cache.keys()[0]).get_matching_vertex_order(helper, vx)
 		helper.make_face(0, vx)
-	#for i in range(duplicated_vid_keys.size()):
-		#var vid1_1: int = duplicated_vid_keys[i]
-		#var vid1_2: int = duplicated_vert_id_map[vid1_1]
-		#for j in range(i + 1, duplicated_vid_keys.size()):
-			#var vid2_1: int = duplicated_vid_keys[j]
-			#var vid2_2: int = duplicated_vert_id_map[vid2_1]
-			## TODO: determine material
-			#helper.make_face(0, PackedInt32Array([vid1_1, vid1_2, vid2_2, vid1_2]))
 	# Select new IDs
 	# TODO: update when proper set_subgizmo_selection gets merged
 	print("DUP ", duplicated_vert_id_map)

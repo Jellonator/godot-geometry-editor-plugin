@@ -11,7 +11,15 @@ class VertexData:
 	func _init(p_id: int, p: Vector3):
 		id = p_id
 		position = p
-
+	func get_linked_faces(data: BrushDataHelper) -> Array[int]:
+		var ret: Array[int] = []
+		for faceid in data.faces:
+			var face := data.get_face(faceid)
+			for i in range(face.loop_first, face.loop_first + face.loop_count):
+				if data.get_loop(i).vertex == id:
+					ret.push_back(faceid)
+					break
+		return ret
 class EdgeData:
 	var id: int = -1
 	var vertex1: int = -1
