@@ -2,6 +2,7 @@
 
 #include <godot_cpp/classes/mesh.hpp>
 #include <godot_cpp/classes/material.hpp>
+#include <godot_cpp/classes/triangle_mesh.hpp>
 #include <godot_cpp/variant/builtin_types.hpp>
 
 #include <godot_cpp/templates/hash_map.hpp>
@@ -94,6 +95,8 @@ public:
 	int32_t gd_get_surface_count() const;
 	godot::Array gd_get_array_for_surface(int32_t index) const;
 	godot::AABB gd_compute_aabb() const;
+
+	godot::PackedVector3Array gd_create_triangle_mesh() const;
 };
 
 VARIANT_ENUM_CAST(BrushData::BrushComponent);

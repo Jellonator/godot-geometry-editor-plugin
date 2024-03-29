@@ -309,6 +309,45 @@ func get_connected_vertices(vertex_id: int) -> Array[int]:
 			ret.push_back(edge.vertex1)
 	return ret
 
+func swap_vertex_ids(v1: int, v2: int):
+	# Swap positions
+	var vertex1 := get_vertex(v1)
+	var vertex2 := get_vertex(v2)
+	var postemp := vertex1.position
+	vertex1.position = vertex2.position
+	vertex2.position = postemp
+	# Gather edges
+	var loopids := {}
+	var edgeids := {}
+	for eid in vertex1.edge_cache:
+		edgeids[eid] = eid
+	for eid in vertex2.edge_cache:
+		edgeids[eid] = eid
+	# Swap edges
+	for eid in edgeids:
+		var edge := get_edge(eid)
+		if edge.vertex1 == v1:
+			edge.vertex1 = v2
+		elif edge.vertex1 == v2:
+			edge.vertex1 = v1
+		if edge.vertex2 == v1:
+			edge.vertex2 = v2
+		elif edge.vertex2 == v2:
+			edge.vertex2 = v1
+		for lid in edge.loop_cache:
+			loopids[lid] = lid
+	# Swap loops
+	for lid in loopids:
+		var loop := get_loop(lid)
+		if loop.vertex == v1:
+			loop.vertex = v2
+		elif loop.vertex == v2:
+			loop.vertex = v1
+	# swap caches
+	var cachetemp := vertex1.edge_cache
+	vertex1.edge_cache = vertex2.edge_cache
+	vertex2.edge_cache = cachetemp
+
 ## Editor functions
 
 func get_vertex_ids() -> PackedInt32Array:

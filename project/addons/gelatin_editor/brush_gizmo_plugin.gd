@@ -85,10 +85,6 @@ func _redraw(gizmo: EditorNode3DGizmo):
 		gizmo.add_lines(selected_edges, get_material("edge_selected", gizmo), true)
 	if unselected_edges.size() > 0:
 		gizmo.add_lines(unselected_edges, get_material("edge_unselected", gizmo), true)
-	var mat := StandardMaterial3D.new()
-	mat.render_priority = 1
-	gizmo.add_mesh(__get_brush_mesh(gizmo), mat)
-	gizmo.add_collision_triangles(__get_brush_mesh(gizmo).generate_triangle_mesh())
 
 func _subgizmos_intersect_frustum(gizmo: EditorNode3DGizmo, camera: Camera3D, frustum_planes: Array[Plane]) -> PackedInt32Array:
 	var ret_ids := PackedInt32Array()
@@ -251,13 +247,18 @@ func _on_extrude():
 	# TODO: update when proper set_subgizmo_selection gets merged
 	print("DUP ", duplicated_vert_id_map)
 	print("SEL ", selected_vert_ids)
+	
+	# just swap vertices for now to fix selection IDs
+	for i in duplicated_vert_id_map:
+		helper.swap_vertex_ids(i, duplicated_vert_id_map[i])
+	
 	__commit_to_brush(active_gizmo)
-	var sel = PackedInt32Array()
-	for i in selected_vert_ids:
-		if duplicated_vert_id_map.has(i):
-			sel.push_back(duplicated_vert_id_map[i])
-		else:
-			sel.push_back(i)
+	#var sel = PackedInt32Array()
+	#for i in selected_vert_ids:
+		#if duplicated_vert_id_map.has(i):
+			#sel.push_back(duplicated_vert_id_map[i])
+		#else:
+			#sel.push_back(i)
 	#if sel.size() > 0:
 		#active_gizmo.get_node_3d().set_subgizmo_selection(active_gizmo, sel[0], Transform3D())
 
